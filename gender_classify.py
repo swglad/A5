@@ -11,7 +11,7 @@
 #       Additional features (i.e. unigrams/bigrams, avg. word or tweet 
 #                                 length, number words not in dictionary,
 #                                 % capitalized, % slang terms, etc.)
-#       Averaged perceptron method
+#       Averaged perceptron method: 1-4% error reduction
 #       Change alpha with iterations (inverse: alpha ~= 1/epoch)
 #       Other optimizations
 
@@ -33,7 +33,9 @@ class Perceptron:
         self.w = numpy.zeros((numfeats+1,))   #+1 including intercept
         self.w[0] = 1
         self.alpha = 1  # learning rate
+        # Model enhancement switches (bool)
         self.avgPerceptron = True  # average perceptron method
+        self.reduceAlpha = True    # reduce alpha with epoch number
 
     # Returns updated weight vector for perceptron model
     def update(self, weight_vec, data_vec, alpha, label):
@@ -57,20 +59,22 @@ class Perceptron:
 
         # Learn perception if iter < max_epochs and mistakes > 0:
         avgPercepList = []
-        for epoch in xrange(1,max_epochs):
+        for epoch in range(1,max_epochs):
             
             mistakes = self.test(traindata, trainlabels)
             if (mistakes == 0):
                 if (self.avgPerceptron): # average weight vectors
                     self.w = sum(avgPercepList) / len(avgPercepList)
+                print "Completed training in", epoch-1, "iterations."
                 return mistakes
             
-            print "iter:", epoch
             for point, label in zip(traindata, trainlabels):
                 self.w = self.update(self.w, point, self.alpha, label)
             if (self.avgPerceptron): 
                 avgPercepList.append(self.w)
-        
+            if (self.reduceAlpha): # trial and error, not optimized
+                self.alpha -= numpy.floor(epoch / (0.5 * max_epochs)) / 100.0
+
         if (self.avgPerceptron): # average weight vectors
             self.w = sum(avgPercepList) / len(avgPercepList)
 
@@ -176,8 +180,8 @@ if __name__=='__main__':
     
     print "Training..."
     trainmistakes = classifier.train(traindata, trainlabels, max_epochs = 30)
-    print "Finished training, with", trainmistakes/numpy.size(trainlabels), "% error rate"
-    
+    print "Finished training, with", trainmistakes/numpy.size(trainlabels) * 100, "% error rate"
+
     devmistakes = classifier.test(devdata, devlabels)
     print devmistakes/numpy.size(devlabels) * 100, "% error rate on development data"
 
