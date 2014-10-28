@@ -33,6 +33,7 @@ class Perceptron:
         self.w = numpy.zeros((numfeats+1,))   #+1 including intercept
         self.w[0] = 1
         self.alpha = 1  # learning rate
+        self.avgPerceptron = True  # average perceptron method
 
     # Returns updated weight vector for perceptron model
     def update(self, weight_vec, data_vec, alpha, label):
@@ -44,6 +45,7 @@ class Perceptron:
     
     # Learn perceptron hyperplane (weight vector: self.w)
     def train(self, traindata, trainlabels, max_epochs):
+        
         # Add intercept feature to training data
         new_traindata = [ [0.0] * (self.numfeats+1) for i in range(len(traindata))]
         for p in range(len(traindata)):
@@ -52,18 +54,31 @@ class Perceptron:
             new_point[1:] = traindata[p]   # copy over data
             new_traindata[p] = new_point
         traindata = new_traindata
+
         # Learn perception if iter < max_epochs and mistakes > 0:
+        avgPercepList = []
         for epoch in xrange(1,max_epochs):
+            
             mistakes = self.test(traindata, trainlabels)
             if (mistakes == 0):
+                if (self.avgPerceptron): # average weight vectors
+                    self.w = sum(avgPercepList) / len(avgPercepList)
                 return mistakes
+            
             print "iter:", epoch
             for point, label in zip(traindata, trainlabels):
                 self.w = self.update(self.w, point, self.alpha, label)
+            if (self.avgPerceptron): 
+                avgPercepList.append(self.w)
+        
+        if (self.avgPerceptron): # average weight vectors
+            self.w = sum(avgPercepList) / len(avgPercepList)
+
         return mistakes
 
     # Return mistake count from inference checking: | dot(w, data) not label |
     def test(self, testdata, testlabels):
+        
         # Fix feature set size if not equal to weight vector
         new_data = [ [0.0] * (self.numfeats+1) for i in range(len(testdata))]
         if len(testdata[0]) != len(self.w):
@@ -73,10 +88,12 @@ class Perceptron:
                 new_point[1:] = testdata[p]   # copy over data
                 new_data[p] = new_point
             testdata = new_data
+        
         # Perform inference error computation
         mistakes = 0
         for point, label in zip(testdata, testlabels):
             mistakes += (numpy.sign(numpy.dot(self.w, point)) != label)
+        
         return mistakes
 
 def rawdata_to_vectors(filename, ndims):
