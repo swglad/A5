@@ -19,18 +19,65 @@ class Perceptron:
         self.numfeats = numfeats
         self.w = numpy.zeros((numfeats+1,))   #+1 including intercept
         self.w[0] = 1
+        self.alpha = 1
+
+    # Returns updated weight vector and if correction was made (1) or not (0)
+    def update(self, weight_vec, data_vec, alpha, label):
+        dot = numpy.dot(weight_vec, data_vec)
+        if numpy.sign(dot) == label:
+            return weight_vec, 0
+        else:
+            return weight_vec + (label * alpha * data_vec), 1
         
     def train(self, traindata, trainlabels, max_epochs):
 
-        #TODO: fill in
-        
+        mistakes = float("inf")
+        # print "w:", self.w
+        # print "size w:", len(self.w)
+        # print "traindata", traindata
+        # print "trainlabels", trainlabels
+        # Add intercept feature to training data
+        new_traindata = [ [0.0] * (self.numfeats+1) for i in range(len(traindata))]
+        for p in range(len(traindata)):
+            new_point = numpy.zeros((self.numfeats+1))
+            new_point[0] = 1        # set intercept
+            new_point[1:] = traindata[p]   # copy over data
+            new_traindata[p] = new_point
+        traindata = new_traindata
+        # While count < max_epochs and mistakes > 0:
+        for epoch in xrange(1,max_epochs):
+            mistakes = self.test(traindata, trainlabels)
+            print "mistakes:", mistakes
+            print "w:", self.w
+            if (mistakes == 0):
+                return mistakes
+            for point, label in zip(traindata, trainlabels):
+                print "iter:", epoch
+                self.w, _ = self.update(self.w, point, self.alpha, label)
         return mistakes
 
     def test(self, testdata, testlabels):
-
-        #TODO: fill in
-        
-        return mistakes
+        # Fix feature set size if not equal to weight vector
+        new_data = [ [0.0] * (self.numfeats+1) for i in range(len(testdata))]
+        weight = self.w
+        print len(testdata[0])
+        print len(self.w)
+        print len(testdata[0]) != len(self.w)
+        if len(testdata[0]) != len(self.w):
+            for p in range(len(testdata)):
+                new_point = numpy.zeros((self.numfeats+1))
+                new_point[0] = 1        # set intercept
+                new_point[1:] = testdata[p]   # copy over data
+                new_data[p] = new_point
+            testdata = new_data
+        # Perform inference error computation
+        mistakes = 0
+        for point, label in zip(testdata, testlabels):
+            #print weight
+            mistakes += (numpy.sign(numpy.dot(weight, point)) != label)
+            #dot = numpy.dot(weight,point)
+            #print "TEST: dot", dot, "label", label, "mis", (numpy.sign(numpy.dot(weight, point)) != label), mistakes
+        return mistakes * 1.0
 
 def rawdata_to_vectors(filename, ndims):
     """reads raw data, maps to feature space, 
@@ -114,6 +161,11 @@ if __name__=='__main__':
     trainmistakes = classifier.train(traindata, trainlabels, max_epochs = 30)
     print "Finished training, with", trainmistakes/numpy.size(trainlabels), "% error rate"
     devmistakes = classifier.test(devdata, devlabels)
+
     print devmistakes/numpy.size(devlabels), "% error rate on development data"
+    print "size dev:", numpy.size(devlabels)
+
     testmistakes = classifier.test(testdata, testlabels)
     print testmistakes/numpy.size(testlabels), "% error rate on test data"
+    print "size test:", numpy.size(testlabels)
+
