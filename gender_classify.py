@@ -19,6 +19,7 @@ from __future__ import division
 import numpy
 import numpy.linalg
 from collections import defaultdict
+from random import shuffle
 
 def dimensionality_reduce(data, ndims):
     U, s, Vh = numpy.linalg.svd(data)
@@ -35,7 +36,8 @@ class Perceptron:
         self.alpha = 1  # learning rate
         # Model enhancement switches (bool)
         self.avgPerceptron = True  # average perceptron method
-        self.reduceAlpha = True    # reduce alpha with epoch number
+        self.reduceAlpha = True     # reduce alpha with epoch number
+        self.shuffleData = True     # mix data order 
 
     # Returns updated weight vector for perceptron model
     def update(self, weight_vec, data_vec, alpha, label):
@@ -68,7 +70,10 @@ class Perceptron:
                 print "Completed training in", epoch-1, "iterations."
                 return mistakes
             
-            for point, label in zip(traindata, trainlabels):
+            data = zip(traindata, trainlabels)
+            if (self.shuffleData): # mix data order
+                shuffle(data) 
+            for point, label in data: 
                 self.w = self.update(self.w, point, self.alpha, label)
             if (self.avgPerceptron): 
                 avgPercepList.append(self.w)
