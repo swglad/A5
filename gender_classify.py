@@ -18,8 +18,21 @@
 from __future__ import division
 import numpy
 import numpy.linalg
-from collections import defaultdict
+from collections import defaultdict, Counter
 from random import shuffle
+
+# BAG OF WORDS ENHANCEMENTS
+LOWER_CASE = True
+WORDS = True
+POS_TAGS = False
+AVG_WORD_LENGTH = True
+AVG_TWEET_LENGTH = True
+ACRONYM_COUNT = False
+ACRONYMS = ["omg", "lol", "idk"]
+
+MIN_NGRAMS = 1
+MAX_NGRAMS = 2
+
 
 def dimensionality_reduce(data, ndims):
     U, s, Vh = numpy.linalg.svd(data)
@@ -27,7 +40,8 @@ def dimensionality_reduce(data, ndims):
     for i in range(ndims):
         sigmatrix[i, i] = s[i]
     return numpy.array(U[:, 0:ndims] * sigmatrix)
-        
+       
+
 class Perceptron:
     def __init__(self, numfeats):
         self.numfeats = numfeats
@@ -37,7 +51,7 @@ class Perceptron:
         # Model enhancement switches (bool)
         self.avgPerceptron = True  # average perceptron method
         self.reduceAlpha = True     # reduce alpha with epoch number
-        self.shuffleData = True     # mix data order 
+        self.shuffleData = False     # mix data order 
 
     # Returns updated weight vector for perceptron model
     def update(self, weight_vec, data_vec, alpha, label):
@@ -57,6 +71,7 @@ class Perceptron:
             new_point[0] = 1               # set intercept
             new_point[1:] = traindata[p]   # copy over data
             new_traindata[p] = new_point
+
         traindata = new_traindata
 
         # Learn perception if iter < max_epochs and mistakes > 0:
@@ -96,6 +111,7 @@ class Perceptron:
                 new_point[0] = 1              # set intercept
                 new_point[1:] = testdata[p]   # copy over data
                 new_data[p] = new_point
+
             testdata = new_data
         
         # Perform inference error computation
@@ -104,6 +120,7 @@ class Perceptron:
             mistakes += (numpy.sign(numpy.dot(self.w, point)) != label)
         
         return mistakes
+
 
 def rawdata_to_vectors(filename, ndims):
     """reads raw data, maps to feature space, 
@@ -123,7 +140,7 @@ def rawdata_to_vectors(filename, ndims):
         else:
             labels[li] = -1
 
-    representations, numfeats = bagofwords(contents)   #TODO: change to call your feature extraction function
+    representations, numfeats = enhanced_bagofwords(contents)
     print "Featurized data"
 
     #convert to a matrix representation
@@ -144,6 +161,45 @@ def rawdata_to_vectors(filename, ndims):
 
     return points, labels
         
+
+def add_ngram_features(words, collection_name, end_tag, cur_index, features, representations, counts):
+    special_tags = ("</" + end_tag + ">", "<" + end_tag + ">")
+
+    ngrams = []
+    for j in range(MIN_NGRAMS, MAX_NGRAMS + 1):
+        ngrams += zip(*[words[i:] for i in range(j)])
+    counts[collection_name].update(ngrams)
+
+    for ngram in ngrams:
+        if len(ngram) == 1:
+            if ngram[0] in special_tags:
+                continue
+
+        if ngram == special_tags:
+            continue
+
+        if counts[collection_name][ngram] == 1:
+            continue
+
+        if ngram not in features[collection_name]:
+            cur_index += 1
+            features[collection_name][ngram] = cur_index
+
+        representations[-1][features[collection_name][ngram]] += 1
+
+    return cur_index
+
+
+def get_word_stats(words):
+    total_tweets = words.count("<s>")
+    total_words = len([word for word in words if word not in ["<s>","</s>"]])
+    total_characters = sum([len(word) for word in words if word not in ["<s>","</s>"]])
+
+    user_word_counts = Counter(words)
+
+    return total_tweets, total_words, total_characters, user_word_counts
+
+
 def bagofwords(contents):
     """represents data in terms of word counts.
     returns representations of data points as a dictionary, and number of features"""
@@ -170,6 +226,57 @@ def bagofwords(contents):
             representations[i][feat_index]+=1
 
     return representations, cur_index+1
+
+
+def enhanced_bagofwords(contents):
+    """represents data in terms of word counts.
+    returns representations of data points as a dictionary, and number of features"""
+    counts = {"words": Counter(), "postags": Counter()}  #total count of each feature, so we can ignore 1-count features
+    features = {"words": {}, "postags": {}, "lengths": {}, "word_counts": {}}   #mapping of features to indices
+    cur_index = -1
+    representations = [] #rep. of each data point in terms of feature values
+    for words, postags in contents:
+
+        representations.append(defaultdict(float))
+
+        if LOWER_CASE:
+            words = map(str.lower, words)
+
+        # Words
+        if WORDS:
+            cur_index = add_ngram_features(words, "words", "s", cur_index, features, representations, counts)
+
+        # Part-of-Speech Tags
+        if POS_TAGS:
+            cur_index = add_ngram_features(postags, "postags", "pos", cur_index, features, representations, counts)
+
+        total_tweets, total_words, total_characters, user_word_counts = get_word_stats(words)
+
+        if AVG_WORD_LENGTH:
+            avg_word_length = total_characters / float(total_words)
+            if "avg_word_length" not in features["lengths"]:
+                cur_index += 1
+                features["lengths"]["avg_word_length"] = cur_index
+            representations[-1][features["lengths"]["avg_word_length"]] = avg_word_length
+
+        if AVG_TWEET_LENGTH:
+            avg_tweet_length = total_words / float(total_tweets)
+            if "avg_tweet_length" not in features["lengths"]:
+                cur_index += 1
+                features["lengths"]["avg_tweet_length"] = cur_index
+            representations[-1][features["lengths"]["avg_tweet_length"]] = avg_tweet_length
+
+        if ACRONYM_COUNT:
+            acronym_total = 0
+            for acronym in ACRONYMS:
+                acronym_total += user_word_counts[acronym]
+
+            if "acronyms" not in features["word_counts"]:
+                cur_index += 1
+                features["word_counts"]["acronyms"] = cur_index
+            representations[-1][features["word_counts"]["acronyms"]] = acronym_total
+
+    return representations, cur_index + 1
 
 if __name__=='__main__':
     points, labels = rawdata_to_vectors('tweets1000.txt', ndims=None)
