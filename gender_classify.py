@@ -2,24 +2,32 @@
 # Authors: Alex Gerstein, Scott Gladstone
 # CS 73 Assignment 5: Vector Space Models
 # 
+# Accuracy: (best superscore under parameters) 
+#           -> 0% train, 26% dev, 22% test data
+#
 # Description: Perception learning model for tweet gender classification
 # Parameters:
-#       alpha   = 1
-#       w[0]    = 1
-#       ndims   = None  (dimensionality reduction)
+#       alpha   = 1   (reducing with epoch)
+#       w[0]    = 1   (intercept)
+#       ndims   = 30  (dimensionality reduction; left as 'None' for speed)
 # Enhancements: 
-#       Additional features (i.e. unigrams/bigrams, avg. word or tweet 
-#                                 length, number words not in dictionary,
-#                                 % capitalized, % slang terms, etc.)
-#       Averaged perceptron method: 1-4% error reduction
-#       Change alpha with iterations (inverse: alpha ~= 1/epoch)
-#       Other optimizations
+#       Vector featuresadded:  (1) POS unigrams & bigrams, 
+#                              (2) avg. word & tweet length 
+#                              (3) acronyms/slang terms
+#       Averaged perceptron hyperplane: 1-4% error reduction
+#       Reduce alpha with iterations (inverse: alpha ~= 1/epoch)
+#       Data order shuffling
 
 from __future__ import division
 import numpy
 import numpy.linalg
 from collections import defaultdict, Counter
 from random import shuffle
+
+# PERCEPTRON ENHANCEMENTS
+AVG_PERCEPTRON = True
+REDUCE_ALPHA = True
+SHUFFLE_DATA = True
 
 # BAG OF WORDS ENHANCEMENTS
 LOWER_CASE = True
@@ -28,7 +36,7 @@ POS_TAGS = False
 AVG_WORD_LENGTH = True
 AVG_TWEET_LENGTH = True
 ACRONYM_COUNT = False
-ACRONYMS = ["omg", "lol", "idk"]
+ACRONYMS = ["omg", "lol", "idk", "idts", "rofl"]
 
 MIN_NGRAMS = 1
 MAX_NGRAMS = 2
@@ -49,9 +57,9 @@ class Perceptron:
         self.w[0] = 1
         self.alpha = 1  # learning rate
         # Model enhancement switches (bool)
-        self.avgPerceptron = True  # average perceptron method
-        self.reduceAlpha = True     # reduce alpha with epoch number
-        self.shuffleData = False     # mix data order 
+        self.avgPerceptron = AVG_PERCEPTRON  # average perceptron method
+        self.reduceAlpha = REDUCE_ALPHA      # reduce alpha with epoch number
+        self.shuffleData = SHUFFLE_DATA      # mix data order 
 
     # Returns updated weight vector for perceptron model
     def update(self, weight_vec, data_vec, alpha, label):
