@@ -32,14 +32,17 @@ SHUFFLE_DATA = True
 # BAG OF WORDS ENHANCEMENTS
 LOWER_CASE = True
 WORDS = True
-POS_TAGS = False
+POS_TAGS = True
 AVG_WORD_LENGTH = True
 AVG_TWEET_LENGTH = True
 ACRONYM_COUNT = False
 ACRONYMS = ["omg", "lol", "idk", "idts", "rofl"]
 
-MIN_NGRAMS = 1
-MAX_NGRAMS = 2
+MIN_WORD_GRAMS = 1
+MAX_WORD_GRAMS = 2
+
+MIN_POS_GRAMS = 2
+MAX_POS_GRAMS = 2
 
 
 def dimensionality_reduce(data, ndims):
@@ -60,6 +63,7 @@ class Perceptron:
         self.avgPerceptron = AVG_PERCEPTRON  # average perceptron method
         self.reduceAlpha = REDUCE_ALPHA      # reduce alpha with epoch number
         self.shuffleData = SHUFFLE_DATA      # mix data order 
+
 
     # Returns updated weight vector for perceptron model
     def update(self, weight_vec, data_vec, alpha, label):
@@ -170,13 +174,19 @@ def rawdata_to_vectors(filename, ndims):
     return points, labels
         
 
-def add_ngram_features(words, collection_name, end_tag, cur_index, features, representations, counts):
+def add_ngram_features(words, collection_name, end_tag, cur_index, features, representations, index, counts):
     special_tags = ("</" + end_tag + ">", "<" + end_tag + ">")
 
+    if collection_name == "postags":
+        min_ngrams = MIN_POS_GRAMS
+        max_ngrams = MAX_POS_GRAMS
+    elif collection_name == "words":
+        min_ngrams = MIN_WORD_GRAMS
+        max_ngrams = MAX_WORD_GRAMS
+
     ngrams = []
-    for j in range(MIN_NGRAMS, MAX_NGRAMS + 1):
+    for j in range(min_ngrams, max_ngrams + 1):
         ngrams += zip(*[words[i:] for i in range(j)])
-    counts[collection_name].update(ngrams)
 
     for ngram in ngrams:
         if len(ngram) == 1:
@@ -193,7 +203,7 @@ def add_ngram_features(words, collection_name, end_tag, cur_index, features, rep
             cur_index += 1
             features[collection_name][ngram] = cur_index
 
-        representations[-1][features[collection_name][ngram]] += 1
+        representations[index][features[collection_name][ngram]] += 1
 
     return cur_index
 
@@ -232,6 +242,7 @@ def bagofwords(contents):
                 features[word] = cur_index
                 feat_index = cur_index
             representations[i][feat_index]+=1
+    print cur_index
 
     return representations, cur_index+1
 
@@ -244,6 +255,18 @@ def enhanced_bagofwords(contents):
     cur_index = -1
     representations = [] #rep. of each data point in terms of feature values
     for words, postags in contents:
+        word_ngrams = []
+        for j in range(MIN_WORD_GRAMS, MAX_WORD_GRAMS + 1):
+            word_ngrams += zip(*[words[i:] for i in range(j)])
+        counts["words"].update(word_ngrams)
+
+        postag_ngrams = []
+        for j in range(MIN_POS_GRAMS, MAX_POS_GRAMS + 1):
+            postag_ngrams += zip(*[postags[i:] for i in range(j)])
+        counts["postags"].update(postag_ngrams)
+
+    for i, content in enumerate(contents):
+        words, postags = content
 
         representations.append(defaultdict(float))
 
@@ -252,11 +275,11 @@ def enhanced_bagofwords(contents):
 
         # Words
         if WORDS:
-            cur_index = add_ngram_features(words, "words", "s", cur_index, features, representations, counts)
+            cur_index = add_ngram_features(words, "words", "s", cur_index, features, representations, i, counts)
 
         # Part-of-Speech Tags
         if POS_TAGS:
-            cur_index = add_ngram_features(postags, "postags", "pos", cur_index, features, representations, counts)
+            cur_index = add_ngram_features(postags, "postags", "pos", cur_index, features, representations, i, counts)
 
         total_tweets, total_words, total_characters, user_word_counts = get_word_stats(words)
 
@@ -265,14 +288,14 @@ def enhanced_bagofwords(contents):
             if "avg_word_length" not in features["lengths"]:
                 cur_index += 1
                 features["lengths"]["avg_word_length"] = cur_index
-            representations[-1][features["lengths"]["avg_word_length"]] = avg_word_length
+            representations[i][features["lengths"]["avg_word_length"]] = avg_word_length
 
         if AVG_TWEET_LENGTH:
             avg_tweet_length = total_words / float(total_tweets)
             if "avg_tweet_length" not in features["lengths"]:
                 cur_index += 1
                 features["lengths"]["avg_tweet_length"] = cur_index
-            representations[-1][features["lengths"]["avg_tweet_length"]] = avg_tweet_length
+            representations[i][features["lengths"]["avg_tweet_length"]] = avg_tweet_length
 
         if ACRONYM_COUNT:
             acronym_total = 0
@@ -282,7 +305,7 @@ def enhanced_bagofwords(contents):
             if "acronyms" not in features["word_counts"]:
                 cur_index += 1
                 features["word_counts"]["acronyms"] = cur_index
-            representations[-1][features["word_counts"]["acronyms"]] = acronym_total
+            representations[i][features["word_counts"]["acronyms"]] = acronym_total
 
     return representations, cur_index + 1
 
