@@ -3,7 +3,7 @@
 # CS 73 Assignment 5: Vector Space Models
 # 
 # Accuracy: (best superscore under parameters) 
-#           -> 0% train, 26% dev, 22% test data
+#           -> 0% train, 29% dev, 25% test data
 #
 # Description: Perception learning model for tweet gender classification
 # Parameters:
@@ -32,16 +32,16 @@ SHUFFLE_DATA = True
 # BAG OF WORDS ENHANCEMENTS
 LOWER_CASE = True
 WORDS = True
-POS_TAGS = True
+POS_TAGS = False
 AVG_WORD_LENGTH = True
 AVG_TWEET_LENGTH = True
-ACRONYM_COUNT = False
+ACRONYM_COUNT = True
 ACRONYMS = ["omg", "lol", "idk", "idts", "rofl"]
 
 MIN_WORD_GRAMS = 1
 MAX_WORD_GRAMS = 2
 
-MIN_POS_GRAMS = 2
+MIN_POS_GRAMS = 1
 MAX_POS_GRAMS = 2
 
 
